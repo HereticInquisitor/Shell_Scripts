@@ -4,6 +4,8 @@
 # paste the path of thr chrome-driver file in the executable path
 # pip install selenium
 
+#Make a .env file to store the login credentials 
+
 from selenium import webdriver
 from dotenv import load_dotenv
 import os
