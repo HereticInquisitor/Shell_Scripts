@@ -7,17 +7,19 @@
 #Make a .env file to store the login credentials 
 
 from selenium import webdriver
-from dotenv import load_dotenv
+from dotenv import load_dotenv,find_dotenv
 import os
 
-load_dotenv()
+
+load_dotenv(find_dotenv('.env'))
 
 username=os.getenv("USER_NAME")
 password=os.getenv("PASS")
 
-url="https://authentication.iiests.ac.in:8003/index.php?zone=hostelnetworks&redirurl=http%3A%2F%2Fdetectportal.brave-http-only.com%2F"
-
-service= webdriver.ChromeService(executable_path="/home/ayush/Ayush/projects/Shell_Scripts/chromedriver")
+url=os.getenv("URL")
+# print(url)
+service= webdriver.ChromeService(executable_path=os.getenv("CDRI"))
+# print(os.getenv("CDRI"))
 driver= webdriver.Chrome(service=service)
 
 driver.get(url)
