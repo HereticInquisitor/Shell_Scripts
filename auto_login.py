@@ -3,10 +3,15 @@
 # unzip the folder and take out the chromedriver file
 # paste the path of thr chrome-driver file in the executable path
 # pip install selenium
-from selenium import webdriver
 
-username="2021itb016.ayush@students.iiests.ac.in"
-password="1nIrel@nd"
+from selenium import webdriver
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+username=os.getenv("USER_NAME")
+password=os.getenv("PASS")
 
 url="https://authentication.iiests.ac.in:8003/index.php?zone=hostelnetworks&redirurl=http%3A%2F%2Fdetectportal.brave-http-only.com%2F"
 
