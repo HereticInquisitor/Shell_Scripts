@@ -1,8 +1,8 @@
 # Make sure Chrome is installed 
 # Install stable version of Chrome-driver from here -->https://googlechromelabs.github.io/chrome-for-testing/
 # unzip the folder and take out the chromedriver file
-# paste the path of thr chrome-driver file in the executable path
-# pip install selenium
+# paste the path of the chrome-driver file in the executable path
+# pip install selenium and python-dotenv
 
 #Make a .env file to store the login credentials 
 
