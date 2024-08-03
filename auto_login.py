@@ -9,7 +9,14 @@
 from selenium import webdriver
 from dotenv import load_dotenv,find_dotenv
 import os
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service as ChromeService
+# from webdriver_manager.chrome import ChromeDriverManager
 
+
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service as ChromeService
 
 load_dotenv(find_dotenv('.env'))
 
@@ -23,9 +30,20 @@ service= webdriver.ChromeService(executable_path=os.getenv("CDRI"))
 driver= webdriver.Chrome(service=service)
 
 driver.get(url)
-driver.find_element("auth_user").send_keys(username)
-driver.find_element("auth_pass").send_keys(password)
-driver.find_element_by_css_selector("input[type=\"checkbox\" i]").click()
-driver.find_element_by_css_selector("input[type=\"submit\" i]").click()
+
+# Wait for the element to be present
+try:
+    username_field = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.NAME, "auth_user"))
+    )
+    username_field.send_keys(username)
+    print('s')
+except Exception as e:
+    print(f"An error occurred: {e}")
+
+# driver.find_element(By.NAME,"auth_user").send_keys(username)
+# driver.find_element(By.NAME,"auth_pass").send_keys(password)
+# driver.find_element_by_css_selector("input[type=\"checkbox\" i]").click()
+# driver.find_element_by_css_selector("input[type=\"submit\" i]").click()
 
 
