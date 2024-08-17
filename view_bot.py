@@ -6,7 +6,6 @@ import time
 def main():
     chrome_driver_path = '/home/ayush/Ayush/projects/Shell_Scripts/chromedriver'
 
-    # URL to open
     url = "https://leetcode.com/problems/time-needed-to-rearrange-a-binary-string/solutions/5575807/tc-o-n-brute-force-solution-with-explanation-c-java/"
 
     while True:
