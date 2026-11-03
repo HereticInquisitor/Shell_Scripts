@@ -8,20 +8,17 @@ from datetime import datetime
 REPO_PATH = "/home/ayush/Ayush/Ip_repo"
 FILE_NAME = "pie.txt" 
 
-# Swapped to a free, keyless API that auto-detects timezone via IP
 TIME_API = "http://worldtimeapi.org/api/ip"
 
 def get_active_ip_address():
     """Fetch the current IP address assigned by the active network (Wi-Fi or Ethernet)."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # Connects to Google's DNS to determine the default network interface
         sock.connect(("8.8.8.8", 80)) 
         ip_address = sock.getsockname()[0]
         sock.close()
         return ip_address
     except Exception as e:
-        print(f"Error fetching IP address: {e}")
         return None
 
 def get_current_time():
@@ -30,17 +27,13 @@ def get_current_time():
         response = requests.get(TIME_API, timeout=5)
         if response.status_code == 200:
             data = response.json()
-            # WorldTimeAPI returns ISO 8601 format, e.g., "2026-11-03T19:31:00.123456+05:30"
             iso_time = data.get("datetime", "")
             if iso_time:
-                # Parse and format it cleanly
                 parsed_time = datetime.fromisoformat(iso_time)
                 return parsed_time.strftime("%Y-%m-%d %H:%M:%S")
             
-        print(f"API request failed with status {response.status_code}. Using system time.")
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    except Exception as e:
-        print(f"Error fetching time from API: {e}. Using system time.")
+    except Exception:
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 def read_ip_from_file():
@@ -64,39 +57,56 @@ def write_ip_to_file(ip_address):
     except Exception as e:
         print(f"Error writing IP to file: {e}")
 
-def commit_and_push_changes():
-    """Commit and push changes to the GitHub repository."""
+def sync_with_github(commit_message=None):
+    """
+    Checks for uncommitted changes or unpushed commits and syncs them to GitHub.
+    Returns True if fully synced, False if a network/git error occurred.
+    """
     try:
-        current_time = get_current_time()
-        commit_message = f"Updated IP at {current_time}"
-
-        subprocess.run(["git", "-C", REPO_PATH, "add", FILE_NAME], check=True)
-        
-        subprocess.run(
-            ["git", "-C", REPO_PATH, "commit", "-m", commit_message],
-            check=True,
+        # 1. Check if there are any uncommitted changes in the local repo
+        status = subprocess.run(
+            ["git", "-C", REPO_PATH, "status", "--porcelain"], 
+            capture_output=True, text=True
         )
         
-        # --- NEW STEP: Pull remote changes before pushing ---
-        print("Pulling latest changes from remote repository...")
-        subprocess.run(
-            ["git", "-C", REPO_PATH, "pull", "--rebase", "origin", "main"], 
-            check=True
+        if status.stdout.strip():
+            msg = commit_message or f"Updated IP at {get_current_time()} (Recovered sync)"
+            subprocess.run(["git", "-C", REPO_PATH, "add", FILE_NAME], check=True)
+            subprocess.run(["git", "-C", REPO_PATH, "commit", "-m", msg], check=True)
+            print(f"Committed local changes: '{msg}'")
+            
+        # 2. Fetch latest status from origin
+        subprocess.run(["git", "-C", REPO_PATH, "fetch", "origin"], check=True)
+        
+        # 3. Check if we have commits locally that aren't pushed to remote yet
+        rev_count = subprocess.run(
+            ["git", "-C", REPO_PATH, "rev-list", "--count", "origin/main..main"],
+            capture_output=True, text=True, check=True
         )
         
-        subprocess.run(
-            ["git", "-C", REPO_PATH, "push", "origin", "main"], check=True
-        )
+        if int(rev_count.stdout.strip()) > 0:
+            print("Unpushed local commits found. Syncing with remote...")
+            subprocess.run(["git", "-C", REPO_PATH, "pull", "--rebase", "origin", "main"], check=True)
+            subprocess.run(["git", "-C", REPO_PATH, "push", "origin", "main"], check=True)
+            print("Successfully pushed to GitHub.")
         
-        print(f"Committed and pushed changes to the main branch: '{commit_message}'")
+        return True # Everything is perfectly in sync
+        
     except subprocess.CalledProcessError as e:
-        print(f"Error committing or pushing changes: {e}")
-        
+        print(f"Git sync failed (likely due to network transition): {e}")
+        return False
+    except Exception as e:
+        print(f"Unexpected error during sync: {e}")
+        return False
+
 def monitor_ip_changes():
     """Continuously monitor for IP address changes (Ethernet or Wi-Fi)."""
-    # Read the IP from the file first to prevent redundant commits on script restart
     last_ip = read_ip_from_file()
     print(f"Initial IP loaded from file: {last_ip}")
+    
+    # We start with needs_sync = True on purpose! 
+    # This ensures it fixes your current stranded commit the very first time it boots.
+    needs_sync = True 
 
     while True:
         current_ip = get_active_ip_address()
@@ -104,10 +114,15 @@ def monitor_ip_changes():
         if current_ip and current_ip != last_ip:
             print(f"Network change detected! New IP: {current_ip}")
             write_ip_to_file(current_ip)
-            commit_and_push_changes()
             last_ip = current_ip
-        else:
-            print("No IP address change detected.")
+            needs_sync = True # New data written, trigger a sync attempt
+        
+        if needs_sync:
+            msg = f"Updated IP at {get_current_time()}"
+            if sync_with_github(msg):
+                needs_sync = False # Successfully pushed, disable the flag
+            else:
+                print("Will retry push in 10 seconds...")
         
         time.sleep(10)
 
