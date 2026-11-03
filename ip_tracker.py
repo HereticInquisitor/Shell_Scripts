@@ -1,3 +1,4 @@
+import os
 import socket
 import subprocess
 import time
@@ -42,6 +43,17 @@ def get_current_time():
         print(f"Error fetching time from API: {e}. Using system time.")
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+def read_ip_from_file():
+    """Read the currently saved IP address from the file."""
+    file_path = f"{REPO_PATH}/{FILE_NAME}"
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                return f.read().strip()
+        except Exception as e:
+            print(f"Error reading IP from file: {e}")
+    return None
+
 def write_ip_to_file(ip_address):
     """Write the current IP address to the file."""
     try:
@@ -75,22 +87,23 @@ def commit_and_push_changes():
 
 def monitor_ip_changes():
     """Continuously monitor for IP address changes (Ethernet or Wi-Fi)."""
-    last_ip = None
+    # Read the IP from the file first to prevent redundant commits on script restart
+    last_ip = read_ip_from_file()
+    print(f"Initial IP loaded from file: {last_ip}")
 
     while True:
         current_ip = get_active_ip_address()
+        
         if current_ip and current_ip != last_ip:
-            print(f"Network change detected. New IP: {current_ip}")
+            print(f"Network change detected! New IP: {current_ip}")
             write_ip_to_file(current_ip)
             commit_and_push_changes()
             last_ip = current_ip
         else:
             print("No IP address change detected.")
         
-        # 10 seconds is quite fast and might cause GitHub authentication rate limits 
-        # if the connection bounces rapidly. Consider 30-60 seconds.
         time.sleep(10)
 
 if __name__ == "__main__":
     print("Starting IP address monitoring and GitHub sync...")
-    monitor_ip_changes()
+    monitor_ip_changes()gvv cccccccccccccccccccxcvxcv
