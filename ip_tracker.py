@@ -77,6 +77,13 @@ def commit_and_push_changes():
             check=True,
         )
         
+        # --- NEW STEP: Pull remote changes before pushing ---
+        print("Pulling latest changes from remote repository...")
+        subprocess.run(
+            ["git", "-C", REPO_PATH, "pull", "--rebase", "origin", "main"], 
+            check=True
+        )
+        
         subprocess.run(
             ["git", "-C", REPO_PATH, "push", "origin", "main"], check=True
         )
@@ -84,7 +91,7 @@ def commit_and_push_changes():
         print(f"Committed and pushed changes to the main branch: '{commit_message}'")
     except subprocess.CalledProcessError as e:
         print(f"Error committing or pushing changes: {e}")
-
+        
 def monitor_ip_changes():
     """Continuously monitor for IP address changes (Ethernet or Wi-Fi)."""
     # Read the IP from the file first to prevent redundant commits on script restart
