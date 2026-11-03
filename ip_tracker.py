@@ -7,49 +7,40 @@ from datetime import datetime
 REPO_PATH = "/home/ayush/Ayush/Ip_repo"
 FILE_NAME = "pie.txt" 
 
+# Swapped to a free, keyless API that auto-detects timezone via IP
+TIME_API = "http://worldtimeapi.org/api/ip"
 
-# Unable to fetch time 
-TIME_API = "http://api.timezonedb.com/v2.1/get-time-zone"
-API_KEY = "XTBJR3C5778K"  
-
-
-def get_wifi_ip_address():
-    """Fetch the current IP address assigned by the Wi-Fi network."""
+def get_active_ip_address():
+    """Fetch the current IP address assigned by the active network (Wi-Fi or Ethernet)."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.connect(("8.8.8.8", 80))  # Google's public DNS server so that it doesn't return the loop back address
+        # Connects to Google's DNS to determine the default network interface
+        sock.connect(("8.8.8.8", 80)) 
         ip_address = sock.getsockname()[0]
         sock.close()
         return ip_address
     except Exception as e:
-        print(f"Error fetching Wi-Fi IP address: {e}")
+        print(f"Error fetching IP address: {e}")
         return None
 
 def get_current_time():
-    """Fetch the current local time from an online API."""
+    """Fetch the current local time from an online API, fallback to system time."""
     try:
-        params = {
-            "key": API_KEY,
-            "format": "json",
-            "by": "zone",
-            "zone": "auto",
-        }
-        response = requests.get(TIME_API, params=params)
+        response = requests.get(TIME_API, timeout=5)
         if response.status_code == 200:
             data = response.json()
-            if data["status"] == "OK":
-                local_time = data["formatted"]
-                return local_time
-            else:
-                print(f"Error fetching time: {data['message']}")
-                return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            print(f"Failed to fetch time from API. HTTP status code: {response.status_code}")
-            return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    except Exception as e:
-        print(f"Error fetching time from API: {e}")
+            # WorldTimeAPI returns ISO 8601 format, e.g., "2026-11-03T19:31:00.123456+05:30"
+            iso_time = data.get("datetime", "")
+            if iso_time:
+                # Parse and format it cleanly
+                parsed_time = datetime.fromisoformat(iso_time)
+                return parsed_time.strftime("%Y-%m-%d %H:%M:%S")
+            
+        print(f"API request failed with status {response.status_code}. Using system time.")
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+    except Exception as e:
+        print(f"Error fetching time from API: {e}. Using system time.")
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 def write_ip_to_file(ip_address):
     """Write the current IP address to the file."""
@@ -64,7 +55,6 @@ def write_ip_to_file(ip_address):
 def commit_and_push_changes():
     """Commit and push changes to the GitHub repository."""
     try:
-        # Nhi chal rha for some reason
         current_time = get_current_time()
         commit_message = f"Updated IP at {current_time}"
 
@@ -79,23 +69,26 @@ def commit_and_push_changes():
             ["git", "-C", REPO_PATH, "push", "origin", "main"], check=True
         )
         
-        print(f"Committed and pushed changes to the main branch: {commit_message}")
+        print(f"Committed and pushed changes to the main branch: '{commit_message}'")
     except subprocess.CalledProcessError as e:
         print(f"Error committing or pushing changes: {e}")
 
 def monitor_ip_changes():
-    """Continuously monitor for IP address changes."""
+    """Continuously monitor for IP address changes (Ethernet or Wi-Fi)."""
     last_ip = None
 
     while True:
-        current_ip = get_wifi_ip_address()
+        current_ip = get_active_ip_address()
         if current_ip and current_ip != last_ip:
-            print(f"IP address changed. New IP: {current_ip}")
+            print(f"Network change detected. New IP: {current_ip}")
             write_ip_to_file(current_ip)
             commit_and_push_changes()
             last_ip = current_ip
         else:
             print("No IP address change detected.")
+        
+        # 10 seconds is quite fast and might cause GitHub authentication rate limits 
+        # if the connection bounces rapidly. Consider 30-60 seconds.
         time.sleep(10)
 
 if __name__ == "__main__":
